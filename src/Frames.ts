@@ -1,3 +1,4 @@
+import { NutationParams } from "./Nutation";
 import { Rotations } from "./Rotations";
 
 /**
@@ -72,6 +73,47 @@ export class Frames {
                 Rotations.rotateCart3d(rMod, z), -theta), zeta);
 
         return rJ2000;
+    }
+
+    /**
+     * Convert coordinates from Mean-of-Date (MoD) to the True-of-Date (ToD) frame.
+     * 
+     * @param {number[]} rMod
+     *      Position in MoD frame.
+     * @param {number} JT
+     *      Julian time.
+     * @param {NutationParams} nutTerms 
+     *      Nutation terms object with fields eps, deps and dpsi. If empty, nutation 
+     *      is computed.
+     * @returns Position in ToD frame.
+     */
+    static coordModTod(rMod : number[], JT : number, nutTerms : NutationParams) : number[]
+    {
+        // Julian centuries after J2000.0 epoch.
+        const T = (JT - 2451545.0) / 36525.0;
+        return Rotations.rotateCart1d(Rotations.rotateCart3d(Rotations.rotateCart1d(
+            rMod, nutTerms.eps), -nutTerms.dpsi), -nutTerms.eps - nutTerms.deps);
+    }
+
+    /**
+     * Convert coordinates from True-of-Date (ToD) to the Mean-of-Date (MoD) frame.
+     * 
+     * @param {number[]} rTod
+     *      Position in MoD frame.
+     * @param {number} JT
+     *      Julian time.
+     * @param {NutationParams} nutTerms 
+     *      Nutation terms object with fields eps, deps and dpsi. If empty, nutation 
+     *      is computed.
+     * @returns Position in MoD frame.
+     */
+    static coordTodMod(rTod : number[], JT : number, nutTerms : NutationParams) : number[]
+    {
+        // Julian centuries after J2000.0 epoch.
+        const T = (JT - 2451545.0) / 36525.0;
+
+        return Rotations.rotateCart1d(Rotations.rotateCart3d(Rotations.rotateCart1d(
+            rTod, nutTerms.eps + nutTerms.deps), nutTerms.dpsi), -nutTerms.eps);
     }
 
     /**

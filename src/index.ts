@@ -7,6 +7,7 @@ import {Tides, AccelerationTides} from "./Tides";
 import {PointMass, PointMassState} from "./PointMass";
 import {Figure} from "./Figure";
 import {stateInitial, constants} from "./Constants";
+import {Nutation} from "./Nutation";
 
 export {
     MathUtils, 
@@ -23,6 +24,7 @@ export {
     Tides,
     AccelerationTides,
     Figure,
+    Nutation,
     stateInitial,
     constants
 };

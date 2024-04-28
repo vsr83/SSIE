@@ -6,6 +6,7 @@ import { constants } from "./Constants";
 import { Frames } from "./Frames";
 import { Libration, LibrationState } from "./Libration";
 import { Tides } from "./Tides";
+import { Nutation, NutationParams } from "./Nutation";
 
 /**
  * Class implementing static methods for computation of figure effects.
@@ -137,7 +138,8 @@ export class Figure {
         const theta  = librationState.theta;
         const psi    = librationState.psi;
 
-        //const nutData = nutationTerms((JT - 2451545.0) / 36525.0);
+        const nutData : NutationParams = 
+            Nutation.nutationTerms((JT - 2451545.0) / 36525.0);
 
         // The position of the Earth w.r.t. Moon body center in DE118/J2000 and 
         // body coordinates.
@@ -162,9 +164,9 @@ export class Figure {
 
         // 2. Accelerations from the interaction between the Moon figure and Sun.
         const accSmBody     = MathUtils.vecMul(accSmBodyTmp, -muM);
-        const accSmJ2000Fig = Frames.coordJ2000Body(accSmBody, phi, theta, psi);
+        const accSmJ2000Fig = Frames.coordBodyJ2000(accSmBody, phi, theta, psi);
         const accMsBody     = MathUtils.vecMul(accSmBodyTmp, muS);
-        const accMsJ2000Fig = Frames.coordJ2000Body(accMsBody, phi, theta, psi);
+        const accMsJ2000Fig = Frames.coordBodyJ2000(accMsBody, phi, theta, psi);
 
         // 3. Libration of the Moon.
 
@@ -181,34 +183,38 @@ export class Figure {
         const rSeJ2000 = MathUtils.vecDiff(rS, rE);
 
         // Transform the relative position of the Moon to the True-of-Date frame.
-        const rMeMod = Frames.coordJ2000Mod(rMeJ2000, JT);
+        const rMeTod = Frames.coordModTod(
+            Frames.coordJ2000Mod(rMeJ2000, JT), JT, nutData);
 
         // Transform the relative position of the Sun to the True-of-Date frame.
-        const rSeMod = Frames.coordJ2000Mod(rSeJ2000, JT);
+        const rSeTod = Frames.coordModTod(
+            Frames.coordJ2000Mod(rSeJ2000, JT), JT, nutData);
 
-        const accMeModTmp = this.accBody(rMeMod, constants.aEarth, 1, Je, []);
-        const accSeModTmp = this.accBody(rSeMod, constants.aEarth, 1, Je, []);
+        const accMeTodTmp = this.accBody(rMeTod, constants.aEarth, 1, Je, []);
+        const accSeTodTmp = this.accBody(rSeTod, constants.aEarth, 1, Je, []);
 
-        const accMeMod = MathUtils.vecMul(accMeModTmp, -muE);
-        const accSeMod = MathUtils.vecMul(accSeModTmp, -muE);
-        const accEmMod = MathUtils.vecMul(accMeModTmp, muM);
-        const accEsMod = MathUtils.vecMul(accSeModTmp, muS);
+        const accMeTod = MathUtils.vecMul(accMeTodTmp, -muE);
+        const accSeTod = MathUtils.vecMul(accSeTodTmp, -muE);
+        const accEmTod = MathUtils.vecMul(accMeTodTmp, muM);
+        const accEsTod = MathUtils.vecMul(accSeTodTmp, muS);
 
         // 5. Accelerations from the interaction between Earth tides and the Moon.
         //[acc_me_tod_tides, acc_em_tod_tides] = acc_tides(r_me_tod, mu_e, mu_m);
-        const {accMeTodTides , accEmTodTides} = Tides.accTides(rMeMod, muE, muM);
-
-        // We ignore nutation.
-        const accMeModTides = accMeTodTides;
-        const accEmModTides = accEmTodTides;
+        const {accMeTodTides , accEmTodTides} = Tides.accTides(rMeTod, muE, muM);
 
         // Convert accelerations from Earth oblateness and tides to J2000 frame.
-        const accMeJ2000Obl = Frames.coordModJ2000(accMeMod, JT);
-        const accSeJ2000Obl = Frames.coordModJ2000(accSeMod, JT);
-        const accEmJ2000Obl = Frames.coordModJ2000(accEmMod, JT);
-        const accEsJ2000Obl = Frames.coordModJ2000(accEsMod, JT);
-        const accMeJ2000Tides = Frames.coordModJ2000(accMeModTides, JT);
-        const accEmJ2000Tides = Frames.coordModJ2000(accEmModTides, JT);
+        const accMeJ2000Obl = Frames.coordModJ2000(Frames.coordTodMod(
+            accMeTod, JT, nutData), JT);
+        const accSeJ2000Obl = Frames.coordModJ2000(Frames.coordTodMod(
+            accSeTod, JT, nutData), JT);
+        const accEmJ2000Obl = Frames.coordModJ2000(Frames.coordTodMod(
+            accEmTod, JT, nutData), JT);
+        const accEsJ2000Obl = Frames.coordModJ2000(Frames.coordTodMod(
+            accEsTod, JT, nutData), JT);
+        const accMeJ2000Tides = Frames.coordModJ2000(Frames.coordTodMod(
+            accMeTodTides, JT, nutData), JT);
+        const accEmJ2000Tides = Frames.coordModJ2000(Frames.coordTodMod(
+            accEmTodTides, JT, nutData), JT);
 
         const accSJ2000 = MathUtils.vecSum(accSmJ2000Fig, accSeJ2000Obl);
         const accEJ2000 = MathUtils.linComb([1, 1, 1, 1], 
@@ -216,7 +222,6 @@ export class Figure {
         const accMJ2000 = MathUtils.linComb([1, 1, 1, 1], 
             [accMsJ2000Fig, accMeJ2000Fig, accMeJ2000Obl, accMeJ2000Tides]);
 
-            /*
         console.log('Moon Figure <-> Earth : Earth Acceleration');
         console.log(accEmJ2000Fig);
         console.log('Moon Figure <-> Earth : Moon Acceleration');
@@ -237,7 +242,6 @@ export class Figure {
         console.log(accEmJ2000Tides);
         console.log('Earth Tides <-> Moon : Moon Acceleration');
         console.log(accMeJ2000Tides);        
-        */
 
         return [accSJ2000, accEJ2000, accMJ2000];
     }
