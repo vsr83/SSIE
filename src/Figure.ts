@@ -222,6 +222,7 @@ export class Figure {
         const accMJ2000 = MathUtils.linComb([1, 1, 1, 1], 
             [accMsJ2000Fig, accMeJ2000Fig, accMeJ2000Obl, accMeJ2000Tides]);
 
+            /*
         console.log('Moon Figure <-> Earth : Earth Acceleration');
         console.log(accEmJ2000Fig);
         console.log('Moon Figure <-> Earth : Moon Acceleration');
@@ -242,7 +243,7 @@ export class Figure {
         console.log(accEmJ2000Tides);
         console.log('Earth Tides <-> Moon : Moon Acceleration');
         console.log(accMeJ2000Tides);        
-
+        */
         return [accSJ2000, accEJ2000, accMJ2000];
     }
 }
