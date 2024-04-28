@@ -113,7 +113,7 @@ export class Frames {
      *                along the body equator (radians).
      * @returns {number[]} Position non-body coordinates.
      */
-    static coordFromBody(rBody : number[], phi : number, theta : number, 
+    static coordBodyJ2000(rBody : number[], phi : number, theta : number, 
         psi : number) : number[] {
         return Rotations.rotateCart3(
             Rotations.rotateCart1(

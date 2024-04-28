@@ -2,7 +2,7 @@ import {MathUtils} from "./MathUtils";
 import {Rotations} from "./Rotations";
 import {Polynomials} from "./Polynomials";
 import {LibrationState, LibrationOutput, MoonInertia, Libration} from "./Libration";
-import {IntegrationState} from "./Integration";
+import {IntegrationState, Integration} from "./Integration";
 import {Tides, AccelerationTides} from "./Tides";
 import {PointMass, PointMassState} from "./PointMass";
 import {Figure} from "./Figure";
@@ -19,6 +19,7 @@ export {
     PointMass,
     PointMassState,
     IntegrationState,
+    Integration,
     Tides,
     AccelerationTides,
     Figure,

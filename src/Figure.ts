@@ -1,6 +1,11 @@
 import { Rotations } from "./Rotations";
 import { MathUtils } from "./MathUtils";
 import { Polynomials } from "./Polynomials";
+import { PointMassState } from "./PointMass";
+import { constants } from "./Constants";
+import { Frames } from "./Frames";
+import { Libration, LibrationState } from "./Libration";
+import { Tides } from "./Tides";
 
 /**
  * Class implementing static methods for computation of figure effects.
@@ -93,5 +98,147 @@ export class Figure {
 
         return Rotations.rotateCart3(
             Rotations.rotateCart2(accPoint, latPoint), -lonPoint);
+    }
+
+    /**
+     * Compute the accelerations due to Earth and Moon figure and tides.
+     * 
+     * This method is heavily based on the oblate method in [2].
+     * 
+     * REFERENCES: 
+     * [1] Newhall, Standish, Williams - DE 102: a numerically integrated
+     * ephemeris of the Moon and planets spanning forty-four centuries,
+     * Astronomy and Astrophysics, 125, 150-167, 1983.
+     * [2] Steve Moshier, DE118i available at 
+     *  http://www.moshier.net/de118i-2.zip  
+     * 
+     * @param {LibrationState} librationState 
+     *      Libration state.
+     * @param {number} JT 
+     *      Julian time.
+     * @returns Array of accelerations (au/d^2, 3) for "Sun", "Earth", "Moon".
+     */
+    static accOblateness(osvSun : PointMassState, osvEarth : PointMassState, 
+        osvMoon : PointMassState, librationState : LibrationState, JT : number) 
+        : number[][] {
+
+        const rS = osvSun.r;
+        const rE = osvEarth.r;
+        const rM = osvMoon.r;
+        const muS = osvSun.mu;
+        const muE = osvEarth.mu;
+        const muM = osvMoon.mu;
+        const Je = constants.Je;
+        const Jm = constants.Jm;
+        const CSnm = constants.CSnm;
+
+        // Parse libration angles.
+        const phi    = librationState.phi;
+        const theta  = librationState.theta;
+        const psi    = librationState.psi;
+
+        //const nutData = nutationTerms((JT - 2451545.0) / 36525.0);
+
+        // The position of the Earth w.r.t. Moon body center in DE118/J2000 and 
+        // body coordinates.
+        const rEmJ2000 = MathUtils.vecDiff(rE, rM);
+        const rEmBody = Frames.coordJ2000Body(rEmJ2000, phi, theta, psi);
+
+        // Acceleration/mu and
+        const accEmBodyTmp = this.accBody(rEmBody, constants.aMoon, 1, Jm, CSnm);
+        // Torque per unit mass.
+        const Tearth = MathUtils.cross(rEmBody, accEmBodyTmp);
+
+        // 1. Accelerations from the interaction between the Moon figure and Earth.
+        const accEmBody     = MathUtils.vecMul(accEmBodyTmp, -muM);
+        const accEmJ2000Fig = Frames.coordBodyJ2000(accEmBody, phi, theta, psi);
+        const accMeBody     = MathUtils.vecMul(accEmBodyTmp, muE);
+        const accMeJ2000Fig = Frames.coordBodyJ2000(accMeBody, phi, theta, psi);
+
+        const rSmJ2000 = MathUtils.vecDiff(rS, rM);
+        const rSmBody  = Frames.coordJ2000Body(rSmJ2000, phi, theta, psi);
+        const accSmBodyTmp = this.accBody(rSmBody, constants.aMoon, 1, Jm, CSnm);
+        const Tsun = MathUtils.cross(rSmBody, accSmBodyTmp);
+
+        // 2. Accelerations from the interaction between the Moon figure and Sun.
+        const accSmBody     = MathUtils.vecMul(accSmBodyTmp, -muM);
+        const accSmJ2000Fig = Frames.coordJ2000Body(accSmBody, phi, theta, psi);
+        const accMsBody     = MathUtils.vecMul(accSmBodyTmp, muS);
+        const accMsJ2000Fig = Frames.coordJ2000Body(accMsBody, phi, theta, psi);
+
+        // 3. Libration of the Moon.
+
+        // Compute the total torque on the Moon and the angular accelerations.
+        const T = MathUtils.linComb([muE, muS], [Tearth, Tsun]);
+        Libration.librationMoon(librationState, T);
+
+        // 4. Oblateness of the Earth.
+
+        // The position of the Moon w.r.t. Earth body center in DE118/J2000.
+        const rMeJ2000 = MathUtils.vecDiff(rM, rE);
+
+        // The position of the Sun w.r.t. Earth body center in DE118/J2000.
+        const rSeJ2000 = MathUtils.vecDiff(rS, rE);
+
+        // Transform the relative position of the Moon to the True-of-Date frame.
+        const rMeMod = Frames.coordJ2000Mod(rMeJ2000, JT);
+
+        // Transform the relative position of the Sun to the True-of-Date frame.
+        const rSeMod = Frames.coordJ2000Mod(rSeJ2000, JT);
+
+        const accMeModTmp = this.accBody(rMeMod, constants.aEarth, 1, Je, []);
+        const accSeModTmp = this.accBody(rSeMod, constants.aEarth, 1, Je, []);
+
+        const accMeMod = MathUtils.vecMul(accMeModTmp, -muE);
+        const accSeMod = MathUtils.vecMul(accSeModTmp, -muE);
+        const accEmMod = MathUtils.vecMul(accMeModTmp, muM);
+        const accEsMod = MathUtils.vecMul(accSeModTmp, muS);
+
+        // 5. Accelerations from the interaction between Earth tides and the Moon.
+        //[acc_me_tod_tides, acc_em_tod_tides] = acc_tides(r_me_tod, mu_e, mu_m);
+        const {accMeTodTides , accEmTodTides} = Tides.accTides(rMeMod, muE, muM);
+
+        // We ignore nutation.
+        const accMeModTides = accMeTodTides;
+        const accEmModTides = accEmTodTides;
+
+        // Convert accelerations from Earth oblateness and tides to J2000 frame.
+        const accMeJ2000Obl = Frames.coordModJ2000(accMeMod, JT);
+        const accSeJ2000Obl = Frames.coordModJ2000(accSeMod, JT);
+        const accEmJ2000Obl = Frames.coordModJ2000(accEmMod, JT);
+        const accEsJ2000Obl = Frames.coordModJ2000(accEsMod, JT);
+        const accMeJ2000Tides = Frames.coordModJ2000(accMeModTides, JT);
+        const accEmJ2000Tides = Frames.coordModJ2000(accEmModTides, JT);
+
+        const accSJ2000 = MathUtils.vecSum(accSmJ2000Fig, accSeJ2000Obl);
+        const accEJ2000 = MathUtils.linComb([1, 1, 1, 1], 
+            [accEsJ2000Obl, accEmJ2000Fig, accEmJ2000Obl, accEmJ2000Tides]);
+        const accMJ2000 = MathUtils.linComb([1, 1, 1, 1], 
+            [accMsJ2000Fig, accMeJ2000Fig, accMeJ2000Obl, accMeJ2000Tides]);
+
+            /*
+        console.log('Moon Figure <-> Earth : Earth Acceleration');
+        console.log(accEmJ2000Fig);
+        console.log('Moon Figure <-> Earth : Moon Acceleration');
+        console.log(accMeJ2000Fig);
+        console.log('Moon Figure <-> Sun : Sun Acceleration');
+        console.log(accSmJ2000Fig);
+        console.log('Moon Figure <-> Sun : Moon Acceleration');
+        console.log(accMsJ2000Fig);
+        console.log('Earth Oblateness <-> Moon : Earth Acceleration');
+        console.log(accEmJ2000Obl);
+        console.log('Earth Oblateness <-> Moon : Moon Acceleration');
+        console.log(accMeJ2000Obl);
+        console.log('Earth Oblateness <-> Sun : Earth Acceleration');
+        console.log(accEsJ2000Obl);
+        console.log('Earth Oblateness <-> Sun : Sun Acceleration');
+        console.log(accSeJ2000Obl);
+        console.log('Earth Tides <-> Moon : Earth Acceleration');
+        console.log(accEmJ2000Tides);
+        console.log('Earth Tides <-> Moon : Moon Acceleration');
+        console.log(accMeJ2000Tides);        
+        */
+
+        return [accSJ2000, accEJ2000, accMJ2000];
     }
 }
