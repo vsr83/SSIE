@@ -4,9 +4,23 @@ import { Polynomials } from "./Polynomials";
 import { PointMassState } from "./PointMass";
 import { constants } from "./Constants";
 import { Frames } from "./Frames";
-import { Libration, LibrationState } from "./Libration";
+import { Libration, LibrationOutput, LibrationState } from "./Libration";
 import { Tides } from "./Tides";
 import { Nutation, NutationParams } from "./Nutation";
+
+/**
+ * Output from the figure computations.
+ */
+export interface FigureOutput {
+    // Acceleration of the Sun in the J2000 frame.
+    accSJ2000 : number[]; 
+    // Acceleration of the Earth in the J2000 frame.
+    accEJ2000 : number[];
+    // Acceleration of the Moon in the J2000 frame.
+    accMJ2000 : number[];
+    // Angular accelerations in the libration.
+    libration : LibrationOutput
+};
 
 /**
  * Class implementing static methods for computation of figure effects.
@@ -120,8 +134,8 @@ export class Figure {
      * @returns Array of accelerations (au/d^2, 3) for "Sun", "Earth", "Moon".
      */
     static accOblateness(osvSun : PointMassState, osvEarth : PointMassState, 
-        osvMoon : PointMassState, librationState : LibrationState, JT : number) 
-        : number[][] {
+        osvMoon : PointMassState, librationState : LibrationState, JT : number) :
+        FigureOutput {
 
         const rS = osvSun.r;
         const rE = osvEarth.r;
@@ -172,7 +186,7 @@ export class Figure {
 
         // Compute the total torque on the Moon and the angular accelerations.
         const T = MathUtils.linComb([muE, muS], [Tearth, Tsun]);
-        Libration.librationMoon(librationState, T);
+        const libration = Libration.librationMoon(librationState, T);
 
         // 4. Oblateness of the Earth.
 
@@ -244,6 +258,11 @@ export class Figure {
         console.log('Earth Tides <-> Moon : Moon Acceleration');
         console.log(accMeJ2000Tides);        
         */
-        return [accSJ2000, accEJ2000, accMJ2000];
+        return {
+            accSJ2000 : accSJ2000,
+            accEJ2000 : accEJ2000, 
+            accMJ2000 : accMJ2000,
+            libration : libration
+        };
     }
 }
