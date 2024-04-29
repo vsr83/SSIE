@@ -1,5 +1,6 @@
-import { LibrationState } from "./Libration";
-import { PointMassState } from "./PointMass";
+import { LibrationOutput, LibrationState } from "./Libration";
+import { PointMass, PointMassState } from "./PointMass";
+import { Figure, FigureOutput } from "./Figure";
 import { MathUtils } from "./MathUtils";
 
 /**
@@ -17,6 +18,26 @@ export interface IntegrationState {
 };
 
 /**
+ * Integration configuration.
+ */
+export interface IntegrationConf {
+    // Integration method.
+    integrationMethod : IntegrationMethod;
+    // Integration step size (Julian days).
+    stepSize : number;
+    // Include relativity in the integration.
+    withRelativity : boolean;
+    // Include figure effects in the integration.
+    withFigure : boolean;
+    // Index of the Sun body for the computation of figure effects. 
+    figIndSun   : number;
+    // Index of the Earth body for the computation of figure effects. 
+    figIndEarth : number;
+    // Index of the Moon body for the computation of figure effects. 
+    figIndMoon : number;
+}
+
+/**
  * Enumeration for the integration method.
  */
 export enum IntegrationMethod {
@@ -31,11 +52,7 @@ export class Integration {
     // Integration state.
     private state : IntegrationState;
 
-    // Integration method.
-    private integrationMethod : IntegrationMethod;
-
-    // Integration step size (Julian days).
-    private stepSize : number;
+    private conf : IntegrationConf;
     
     constructor() {
     }
@@ -43,21 +60,17 @@ export class Integration {
     /**
      * Initialize integrator.
      * 
-     * @param {IntegrationState} stateIn 
-     *      Initial condition for the integrator.
-     * @param {IntegrationMethod} integrationMethodIn 
-     *      Integration method.
-     * @param {number} stepSizeIn 
-     *      Integration step size (Julian days).
+     * @param {IntegrationState} stateIn
+     *      Integration state.
+     * @param {IntegrationConf} conf
+     *      Integration configuration.
      */
     initialize(
         stateIn : IntegrationState, 
-        integrationMethodIn : IntegrationMethod, 
-        stepSizeIn : number) {
+        confIn : IntegrationConf) {
             
         this.state = stateIn;
-        this.integrationMethod = integrationMethodIn;
-        this.stepSize = stepSizeIn;
+        this.conf = confIn;
     }
 
     /**
@@ -71,12 +84,14 @@ export class Integration {
         const libration : LibrationState = this.state.libration;
         const pointMasses : PointMassState[] = this.state.pointMasses;
 
-        dof.push(this.state.libration.phi);
-        dof.push(this.state.libration.phi1);
-        dof.push(this.state.libration.theta);
-        dof.push(this.state.libration.theta1);
-        dof.push(this.state.libration.psi);
-        dof.push(this.state.libration.psi1);
+        if (this.conf.withFigure) {
+            dof.push(this.state.libration.phi);
+            dof.push(this.state.libration.phi1);
+            dof.push(this.state.libration.theta);
+            dof.push(this.state.libration.theta1);
+            dof.push(this.state.libration.psi);
+            dof.push(this.state.libration.psi1);
+        }
     
         for (let indObject = 0; indObject < pointMasses.length; indObject++) {
             const {r, v, mu} = pointMasses[indObject];
@@ -101,21 +116,37 @@ export class Integration {
      *      New time after epoch.
      */
     private dofToState(dof : number[], deltaT : number) : IntegrationState {
-        const librationState : LibrationState = {
-            phi    : dof[0],
-            phi1   : dof[1],
-            theta  : dof[2],
-            theta1 : dof[3],
-            psi    : dof[4],
-            psi1   : dof[5]
-        };
+        let librationState;
+        let startIndex;
+
+        if (this.conf.withFigure) {
+            startIndex = 6;
+            librationState = {
+                phi    : dof[0],
+                phi1   : dof[1],
+                theta  : dof[2],
+                theta1 : dof[3],
+                psi    : dof[4],
+                psi1   : dof[5]
+            };
+        } else {
+            startIndex = 0;
+            librationState = {
+                phi    : 0.0,
+                phi1   : 0.0,
+                theta  : 0.0,
+                theta1 : 0.0,
+                psi    : 0.0,
+                psi1   : 0.0
+            };
+        }
 
         const oldPointMasses = this.state.pointMasses;
         const numPointMasses = oldPointMasses.length;
         const newPointmasses : PointMassState[] = [];
 
         for (let indTarget = 0; indTarget < numPointMasses; indTarget++) {
-            const indDof = 6 + indTarget * 6;
+            const indDof = startIndex + indTarget * 6;
             const name = oldPointMasses[indTarget].name;
             const mu   = oldPointMasses[indTarget].mu;
             const r    = [dof[indDof], dof[indDof + 1], dof[indDof + 2]]; 
@@ -152,7 +183,7 @@ export class Integration {
      * @returns Object with yOut and tOut fields for the DoFs and 
      * time after the step.
      */
-    static runge4(funcIn : any, tIn : number, yIn : number[], h : number, 
+    private runge4(funcIn : any, tIn : number, yIn : number[], h : number, 
         param : any) {
         const k1 = funcIn(tIn, yIn, param);
         const k2 = funcIn(tIn + h/2, MathUtils.linComb([1, h/2], [yIn, k1]), param);
@@ -244,6 +275,71 @@ export class Integration {
     }
 
     /**
+     * Compute the vector f(t, y) = y'.
+     * 
+     * @param {number} tIn 
+     *      Time after epoch.
+     * @param {number[]} yNew 
+     *      Degrees of freedom.
+     * @param {number} JT
+     *      Julian time at epoch. 
+     */
+    private func(tIn : number, yNew : number[], JT : number) : number[] {
+        const fOut : number[] = [];
+
+        let state : IntegrationState = this.dofToState(yNew, tIn);
+
+        const accPointMass : number[][] = PointMass.accPointMass(
+            state.pointMasses, this.conf.withRelativity);
+        
+        let startIndex = 0;
+        if (this.conf.withFigure) {
+            startIndex = 6;
+
+            const osvSun   = state.pointMasses[this.conf.figIndSun];
+            const osvEarth = state.pointMasses[this.conf.figIndEarth];
+            const osvMoon  = state.pointMasses[this.conf.figIndMoon];
+
+            const figureOutput : FigureOutput = Figure.accOblateness(
+                osvSun, osvEarth, osvMoon, state.libration, state.JTepoch + tIn
+            );
+
+            // Add figure effects to outputs.
+            accPointMass[this.conf.figIndSun] = MathUtils.vecSum(
+                accPointMass[this.conf.figIndSun], figureOutput.accSJ2000);
+            accPointMass[this.conf.figIndEarth] = MathUtils.vecSum(
+                accPointMass[this.conf.figIndEarth], figureOutput.accEJ2000);
+            accPointMass[this.conf.figIndMoon] = MathUtils.vecSum(
+                accPointMass[this.conf.figIndMoon], figureOutput.accMJ2000);
+
+            // Collect libration time derivatives.
+            const librationState : LibrationState = state.libration;
+            const librationOutput : LibrationOutput = figureOutput.libration;
+
+            fOut.push(librationState.phi1);
+            fOut.push(librationOutput.phi2);
+            fOut.push(librationState.theta1);
+            fOut.push(librationOutput.theta2);
+            fOut.push(librationState.psi1);
+            fOut.push(librationOutput.psi2);
+        }
+
+        for (let indObject = 0; indObject < state.pointMasses.length; indObject++) {
+            const indDof = startIndex + indObject * 6;
+
+            const acc = accPointMass[indObject];
+            fOut.push(yNew[indDof + 3]);
+            fOut.push(yNew[indDof + 4]);
+            fOut.push(yNew[indDof + 5]);
+            fOut.push(acc[0]);
+            fOut.push(acc[1]);
+            fOut.push(acc[2]);
+        }
+
+        return fOut;
+    }
+
+    /**
      * Set integration state.
      * 
      * @param {IntegrationState} stateIn 
@@ -263,40 +359,19 @@ export class Integration {
     }
 
     /**
-     * Set integration method.
+     * Set integration configuration.
      * 
-     * @param {IntegrationMethod} integrationMethodIn 
-     *      Integration method.
+     * @param {IntegrationConf} confIn 
+     *      Integration configuration.
      */
-    setIntegrationMethod(integrationMethodIn : IntegrationMethod) {
-        this.integrationMethod = integrationMethodIn;
+    setIntegrationConf(confIn : IntegrationConf) {
+        this.conf = confIn;
     }
 
     /**
-     * Get integration method.
-     * 
-     * @returns {IntegrationMethod} The integration method.
+     * Get integration configuration.
      */
-    getIntegrationMethod() : IntegrationMethod {
-        return this.integrationMethod;
-    }
-
-    /**
-     * Set step size.
-     * 
-     * @param {number} stepSizeIn 
-     *      Step size (Julian days).
-     */
-    setStepSize(stepSizeIn : number) {
-        this.stepSize = stepSizeIn;
-    }
-
-    /**
-     * Get step size.
-     * 
-     * @returns {number} Step size (Julian days).
-     */
-    getStepSize() : number {
-        return this.stepSize;
+    getIntegrationConf() : IntegrationConf {
+        return this.conf;
     }
 }
