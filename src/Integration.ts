@@ -41,8 +41,8 @@ export interface IntegrationConf {
  * Enumeration for the integration method.
  */
 export enum IntegrationMethod {
-    INTEGRATION_RK4,
-    INTEGRATION_ADAMS8
+    RK4,
+    ADAMS8
 };
 
 /**
@@ -52,8 +52,12 @@ export class Integration {
     // Integration state.
     private state : IntegrationState;
 
+    // Integration configuration.
     private conf : IntegrationConf;
     
+    /**
+     * Public constructor.
+     */
     constructor() {
     }
 
@@ -71,6 +75,44 @@ export class Integration {
             
         this.state = stateIn;
         this.conf = confIn;
+    }
+
+    /**
+     * Integrate forward given number of steps.
+     * 
+     * @param {number} numSteps 
+     *      Number of steps.
+     */
+    public integrateSteps(numSteps : number) {
+        let F : number[][] = [];
+        const JT = this.state.JTepoch;
+        let deltaT = this.state.deltaT;
+        const h = this.conf.stepSize;
+        let y = this.stateToDof();
+
+        for (let step = 0; step < numSteps; step++) {
+            if (this.conf.integrationMethod == IntegrationMethod.ADAMS8) {
+                if (step < 8) {
+                    const {yOut, tOut} = this.runge4(this.func, deltaT, y, h, this);
+                    const f : number[] = this.func(tOut, yOut, this);
+                    F.unshift(f);
+                    y = yOut;
+                    deltaT = tOut;
+                } else {
+                    const {tOut, yOut, Fout} = this.adams8(this.func, deltaT, y, F, h, this);
+                    F = Fout;
+                    y = yOut;
+                    deltaT = tOut;
+                }
+            } else if (this.conf.integrationMethod == IntegrationMethod.RK4){
+                const {yOut, tOut} = this.runge4(this.func, deltaT, y, h, this);
+                const f : number[] = this.func(tOut, yOut, this);
+                y = yOut;
+                deltaT = tOut;
+            }
+        }
+
+        this.state = this.dofToState(y, deltaT);
     }
 
     /**
@@ -115,7 +157,7 @@ export class Integration {
      * @param {number} deltaT
      *      New time after epoch.
      */
-    private dofToState(dof : number[], deltaT : number) : IntegrationState {
+    public dofToState(dof : number[], deltaT : number) : IntegrationState {
         let librationState;
         let startIndex;
 
@@ -284,33 +326,33 @@ export class Integration {
      * @param {number} JT
      *      Julian time at epoch. 
      */
-    private func(tIn : number, yNew : number[], JT : number) : number[] {
+    private func(tIn : number, yNew : number[], ref : any) : number[] {
         const fOut : number[] = [];
 
-        let state : IntegrationState = this.dofToState(yNew, tIn);
+        let state : IntegrationState = ref.dofToState(yNew, tIn);
 
         const accPointMass : number[][] = PointMass.accPointMass(
-            state.pointMasses, this.conf.withRelativity);
+            state.pointMasses, ref.conf.withRelativity);
         
         let startIndex = 0;
-        if (this.conf.withFigure) {
+        if (ref.conf.withFigure) {
             startIndex = 6;
 
-            const osvSun   = state.pointMasses[this.conf.figIndSun];
-            const osvEarth = state.pointMasses[this.conf.figIndEarth];
-            const osvMoon  = state.pointMasses[this.conf.figIndMoon];
+            const osvSun   = state.pointMasses[ref.conf.figIndSun];
+            const osvEarth = state.pointMasses[ref.conf.figIndEarth];
+            const osvMoon  = state.pointMasses[ref.conf.figIndMoon];
 
             const figureOutput : FigureOutput = Figure.accOblateness(
                 osvSun, osvEarth, osvMoon, state.libration, state.JTepoch + tIn
             );
 
             // Add figure effects to outputs.
-            accPointMass[this.conf.figIndSun] = MathUtils.vecSum(
-                accPointMass[this.conf.figIndSun], figureOutput.accSJ2000);
-            accPointMass[this.conf.figIndEarth] = MathUtils.vecSum(
-                accPointMass[this.conf.figIndEarth], figureOutput.accEJ2000);
-            accPointMass[this.conf.figIndMoon] = MathUtils.vecSum(
-                accPointMass[this.conf.figIndMoon], figureOutput.accMJ2000);
+            accPointMass[ref.conf.figIndSun] = MathUtils.vecSum(
+                accPointMass[ref.conf.figIndSun], figureOutput.accSJ2000);
+            accPointMass[ref.conf.figIndEarth] = MathUtils.vecSum(
+                accPointMass[ref.conf.figIndEarth], figureOutput.accEJ2000);
+            accPointMass[ref.conf.figIndMoon] = MathUtils.vecSum(
+                accPointMass[ref.conf.figIndMoon], figureOutput.accMJ2000);
 
             // Collect libration time derivatives.
             const librationState : LibrationState = state.libration;
