@@ -54,7 +54,9 @@ export class Integration {
 
     // Integration configuration.
     private conf : IntegrationConf;
-    
+
+    private F : number[][];
+
     /**
      * Public constructor.
      */
@@ -72,20 +74,33 @@ export class Integration {
     initialize(
         stateIn : IntegrationState, 
         confIn : IntegrationConf) {
-            
-        this.state = stateIn;
+                
+        this.state = JSON.parse(JSON.stringify(stateIn));
         this.conf = confIn;
+        this.F = [];
+        const JT = this.state.JTepoch;
     }
 
     /**
-     * Integrate forward given number of steps.
+     * Move objects so that the barycenter is at the origin.
+     */
+    public adjustBary() {
+        // Adjust barycenter:
+        const {r, v} = PointMass.barycenter(this.state.pointMasses, true);
+        for (let indObj = 0; indObj < this.state.pointMasses.length; indObj++) {
+            const pointMass = this.state.pointMasses[indObj];
+            pointMass.r = MathUtils.vecDiff(pointMass.r, r);
+            pointMass.v = MathUtils.vecDiff(pointMass.v, v);
+        }
+    }
+
+    /**
+     * Integrate given number of steps.
      * 
      * @param {number} numSteps 
      *      Number of steps.
      */
     public integrateSteps(numSteps : number) {
-        let F : number[][] = [];
-        const JT = this.state.JTepoch;
         let deltaT = this.state.deltaT;
         const h = this.conf.stepSize;
         let y = this.stateToDof();
@@ -95,17 +110,17 @@ export class Integration {
                 if (step < 8) {
                     const {yOut, tOut} = this.runge4(this.func, deltaT, y, h, this);
                     const f : number[] = this.func(tOut, yOut, this);
-                    F.unshift(f);
+                    this.F.unshift(f);
                     y = yOut;
                     deltaT = tOut;
                 } else {
-                    const {tOut, yOut, Fout} = this.adams8(this.func, deltaT, y, F, h, this);
-                    F = Fout;
+                    const {tOut, yOut, Fout} = this.adams8(this.func, deltaT, y, this.F, h, this);
+                    this.F = Fout;
                     y = yOut;
                     deltaT = tOut;
                 }
             } else if (this.conf.integrationMethod == IntegrationMethod.RK4){
-                const {yOut, tOut} = this.runge4(this.func, deltaT, y, h, this);
+                const {yOut, tOut} = this.runge4(this.func, deltaT, y, h, this.F);
                 const f : number[] = this.func(tOut, yOut, this);
                 y = yOut;
                 deltaT = tOut;
@@ -113,6 +128,7 @@ export class Integration {
         }
 
         this.state = this.dofToState(y, deltaT);
+        this.adjustBary();
     }
 
     /**

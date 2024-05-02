@@ -8,6 +8,7 @@ import {PointMass, PointMassState} from "./PointMass";
 import {Figure} from "./Figure";
 import {stateInitial, constants} from "./Constants";
 import {Nutation} from "./Nutation";
+import {JPLData} from "./JPLData";
 
 export {
     MathUtils, 
@@ -25,6 +26,7 @@ export {
     AccelerationTides,
     Figure,
     Nutation,
+    JPLData,
     stateInitial,
     constants
 };
