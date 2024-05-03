@@ -4,6 +4,7 @@
   "description": "TypeScript library for the numerical integration of the Solar System",
   "main": "index.js",
   "scripts": {
+    "de422_test": "npx mocha -t 100000000 -r ts-node/register test/comparisonDE422.ts",
     "test": "npx mocha -t 1000000 -r ts-node/register test/*.spec.ts",
     "buildts": "tsc --build",
     "build": "webpack --mode production",
