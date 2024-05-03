@@ -127,8 +127,7 @@ export class Integration {
                     deltaT = tOut;
                 }
             } else if (this.conf.integrationMethod == IntegrationMethod.RK4){
-                const {yOut, tOut} = this.runge4(this.func, deltaT, y, h, this.state.F);
-                const f : number[] = this.func(tOut, yOut, this);
+                const {yOut, tOut} = this.runge4(this.func, deltaT, y, h, this);
                 y = yOut;
                 deltaT = tOut;
             }

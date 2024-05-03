@@ -9,7 +9,8 @@ import {Figure} from "./Figure";
 import {stateInitial, constants} from "./Constants";
 import {Nutation} from "./Nutation";
 import {JPLData} from "./JPLData";
-import { DayBuffer } from "./DayBuffer";
+import { DayIntegrator } from "./DayIntegrator";
+import { Engine } from "./Engine";
 
 export {
     MathUtils, 
@@ -28,7 +29,8 @@ export {
     Figure,
     Nutation,
     JPLData,
-    DayBuffer,
+    DayIntegrator,
+    Engine,
     stateInitial,
     constants
 };
