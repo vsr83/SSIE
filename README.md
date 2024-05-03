@@ -9,7 +9,7 @@ The Solar System Integration Engine (SSIE) attempts to implement real-time integ
 
 From comparison to DE422 exports 1900-2100, it seems that the mean and maximum errors with respect to DE422 are as follows:
 | Target  | Max. Error (km)   | Mean Error (km)   |
-| ------- |:------------------: -----------------:|
+| ------- |:-----------------:| -----------------:|
 | Mercury | 1.103291588456589 | 0.234647640795888 |
 | Venus   | 0.434072316107957 | 0.134578149837895 |
 | Earth   | 0.499030736683958 | 0.098347978485213 |
