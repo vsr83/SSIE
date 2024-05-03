@@ -108,8 +108,10 @@ export class DayIntegrator {
             const state = integration.getIntegrationState();
             // The result Julian time is always an integer. However, the sum below
             // may lead to floating point errors.
-            state.JTepoch = Math.round(state.JTepoch + state.deltaT);
+            state.JTepoch = JD;
             state.deltaT = 0;
+            // We need to reset F since the direction of the integration might change.
+            state.F = [];
         } else {
             return initialCondition;
         }
