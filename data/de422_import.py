@@ -8,7 +8,7 @@ import sys;
 
 eph = Ephemeris(de422);
 
-def generate_json(JD):
+def generate_json(JDepoch):
     bodies = ['sun', 'mercury', 'venus', 'earthmoon', 'moon', 'mars', 
     'jupiter', 'saturn', 'uranus', 'neptune', 'pluto'];
     au = 149597870.691;
