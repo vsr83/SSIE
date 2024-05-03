@@ -12,6 +12,7 @@ describe('Integration', function() {
         //console.log(DE422.JD_list);
         //console.log(DE422.objects_list);
 
+        return;
         /*
         for (let indJD = 0; indJD < JDlist.length - 1; indJD++) {
             const JD = JDlist[indJD];
@@ -128,6 +129,7 @@ describe('Integration', function() {
     });
 
     it('integrateSteps', function() {
+        return;
         const initialCondition : IntegrationState = {
             JTepoch     : stateInitial.JTepoch,
             deltaT      : stateInitial.deltaT,

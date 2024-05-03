@@ -44,11 +44,11 @@ export class JPLData {
         let diffMin = Number.MAX_VALUE;
 
         for (let ind = 0; ind < JDlist.length; ind++) {
-            const JD = JDlist[ind];
-            const diff = Math.abs(JD);
+            const diff = Math.abs(JD - JDlist[ind]);
 
             if (diff < diffMin) {
                 indMin = ind;
+                diffMin = diff;
             }
         }
         return indMin;

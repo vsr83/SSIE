@@ -14,7 +14,10 @@ export interface IntegrationState {
     // State of each point mass integrated.
     pointMasses : PointMassState[],
     // State of the lunar libration.
-    libration : LibrationState
+    libration : LibrationState,
+    // DoFs from previous steps for the Adams method. Should be cleared before
+    // changing the integration configuration.
+    F? : number[][]
 };
 
 /**
@@ -55,7 +58,7 @@ export class Integration {
     // Integration configuration.
     private conf : IntegrationConf;
 
-    private F : number[][];
+    //private F : number[][];
 
     /**
      * Public constructor.
@@ -77,7 +80,9 @@ export class Integration {
                 
         this.state = JSON.parse(JSON.stringify(stateIn));
         this.conf = confIn;
-        this.F = [];
+        if (this.state.F === undefined) {
+            this.state.F = [];
+        }
         const JT = this.state.JTepoch;
     }
 
@@ -104,23 +109,25 @@ export class Integration {
         let deltaT = this.state.deltaT;
         const h = this.conf.stepSize;
         let y = this.stateToDof();
+        if (this.state.F === undefined) return;
 
         for (let step = 0; step < numSteps; step++) {
             if (this.conf.integrationMethod == IntegrationMethod.ADAMS8) {
-                if (step < 8) {
+                if (this.state.F.length < 8) {
                     const {yOut, tOut} = this.runge4(this.func, deltaT, y, h, this);
                     const f : number[] = this.func(tOut, yOut, this);
-                    this.F.unshift(f);
+                    if (this.state.F !== undefined)
+                    this.state.F.unshift(f);
                     y = yOut;
                     deltaT = tOut;
                 } else {
-                    const {tOut, yOut, Fout} = this.adams8(this.func, deltaT, y, this.F, h, this);
-                    this.F = Fout;
+                    const {tOut, yOut, Fout} = this.adams8(this.func, deltaT, y, this.state.F, h, this);
+                    this.state.F = Fout;
                     y = yOut;
                     deltaT = tOut;
                 }
             } else if (this.conf.integrationMethod == IntegrationMethod.RK4){
-                const {yOut, tOut} = this.runge4(this.func, deltaT, y, h, this.F);
+                const {yOut, tOut} = this.runge4(this.func, deltaT, y, h, this.state.F);
                 const f : number[] = this.func(tOut, yOut, this);
                 y = yOut;
                 deltaT = tOut;
@@ -217,7 +224,8 @@ export class Integration {
             JTepoch     : this.state.JTepoch,
             deltaT      : deltaT,
             pointMasses : newPointmasses,
-            libration   : librationState
+            libration   : librationState,
+            F           : this.state.F
         };
     }
 
