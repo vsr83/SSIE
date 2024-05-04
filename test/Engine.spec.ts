@@ -12,9 +12,9 @@ describe('Engine', function() {
         
 
         for (let delta = 0; delta < 36.0; delta += 0.01) {
-            const state = engine.get(2460433 + delta);
-            console.log((2460433 + delta) + " " + MathUtils.vecDiff(state.pointMasses[3].r, state.pointMasses[0].r)
-            );
+            //const state = engine.get(2460433 + delta);
+            //console.log((2460433 + delta) + " " + MathUtils.vecDiff(state.pointMasses[3].r, state.pointMasses[0].r)
+            //);
         }
     });
 });

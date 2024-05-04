@@ -1,6 +1,10 @@
 import { Integration, IntegrationConf, IntegrationState, IntegrationMethod } from "./Integration";
 import { JPLData } from "./JPLData";
 
+type BufferMap = {
+    [key : number]: IntegrationState;
+}
+
 /**
  * Class implementing of the day buffer.
  */
@@ -15,7 +19,9 @@ export class DayIntegrator {
     private lastDirection : number;
     // Number of days after previous initialization.
     private numDaysAfterInitial : number
-    
+    // Buffer used to retrieve previously computed states.
+    private buffer : BufferMap;
+
     /**
      * Public constructor.
      * 
@@ -26,6 +32,7 @@ export class DayIntegrator {
         this.JDinit = -1;
         this.lastDirection = 0;
         this.numDaysAfterInitial = 0;
+        this.buffer = {};
     }
 
     /**
@@ -50,9 +57,19 @@ export class DayIntegrator {
             this.state = this.fromInitialCondition(fullJD),
             this.JDinit = fullJD;
             this.numDaysAfterInitial = 0;
+            this.buffer = {};
 
-            return JSON.parse(JSON.stringify(this.state));
+            const stateOut = JSON.parse(JSON.stringify(this.state));
+            this.buffer[fullJD] = stateOut;
+
+            return stateOut;
         }
+
+        // If the state is in the buffer, skip computation.
+        if (fullJD in this.buffer) {
+            return this.buffer[fullJD]; 
+        }
+
         // JTepoch should be an integer with the deltaT combined from the previous
         // integration.
         const numDays = fullJD - this.state.JTepoch;
@@ -78,15 +95,20 @@ export class DayIntegrator {
             Math.sign(numDays) * Math.abs(integration.getIntegrationConf().stepSize);
         const stepsPerDay = Math.round(Math.abs(1.0 / this.integrationConf.stepSize));
 
-        integration.integrateSteps(stepsPerDay * Math.abs(numDays));
+        let stateOut;
+        for (let indDay = 0; indDay < Math.abs(numDays); indDay++) {
+            integration.integrateSteps(stepsPerDay);
 
-        this.state = integration.getIntegrationState();
-        // The result Julian time is always an integer. However, the sum below
-        // may lead to floating point errors.
-        this.state.JTepoch = Math.round(this.state.JTepoch + this.state.deltaT);
-        this.state.deltaT = 0;
+            this.state = integration.getIntegrationState();
+            // The result Julian time is always an integer. However, the sum below
+            // may lead to floating point errors.
+            this.state.JTepoch = Math.round(this.state.JTepoch + this.state.deltaT);
+            this.state.deltaT = 0;
+            stateOut = JSON.parse(JSON.stringify(this.state));
+            this.buffer[fullJD] = stateOut;
+        }
 
-        return JSON.parse(JSON.stringify(this.state));
+        return stateOut;
     }
 
     /**
