@@ -7,20 +7,20 @@ The implementation is based on my another repository [JPL_Ephem](https://github.
 
 ## Accuracy
 From comparison to positions generated using DE422 for the time period 1900-2100, it seems that the mean and maximum errors with respect to DE422 are as follows:
-| Target  | Max. Error (km)   | Mean Error (km)   |
-| ------- |:-----------------:| -----------------:|
-| Mercury | 1.103291588456589 | 0.234647640795888 |
-| Venus   | 0.434072316107957 | 0.134578149837895 |
-| Earth   | 0.499030736683958 | 0.098347978485213 |
-| Mars    | 1.477372285843128 | 0.060360260374254 |
-| Jupiter | 0.557803253978189 | 0.046755323475495 |
-| Saturn  | 0.278839299500502 | 0.037325515293097 |   
-| Uranus  | 0.244573157071886 | 0.036408359080810 |
-| Neptune | 0.247600200751253 | 0.036328739307928 |
-| Pluto   | 0.251209398400652 | 0.036323973415330 |
-| Moon    | 0.019454350453341 | 0.003747422334109 |
+| Target  | Max. Error (km)   | Mean Error (km)   | Max. Error (mas)   |
+| ------- |:-----------------:|:-----------------:| ------------------:|
+| Mercury | 1.103291588456589 | 0.234647640795888 | 1.583638833741311  |
+| Venus   | 0.434072316107957 | 0.134578149837895 | 0.925710609951289  |   
+| Earth   | 0.499030736683958 | 0.098347978485213 | NA                 |  
+| Mars    | 1.477372285843128 | 0.060360260374254 | 2.105873475122087  |
+| Jupiter | 0.557803253978189 | 0.046755323475495 | 0.196609069352983  |
+| Saturn  | 0.278839299500502 | 0.037325515293097 | 0.119987798115303  |
+| Uranus  | 0.244573157071886 | 0.036408359080810 | 0.048408484513444  |
+| Neptune | 0.247600200751253 | 0.036328739307928 | 0.030104055336818  |
+| Pluto   | 0.251209398400652 | 0.036323973415330 | 0.027936201940944  |
+| Moon    | 0.019454350453341 | 0.003747422334109 | 10.975927882132135 |
 
-It is likely that the accuracy could be significantly improved.
+The angular error is expressed w.r.t. Earth. It is likely that the accuracy could be significantly improved.
 
 ## Simple Example
 ```
