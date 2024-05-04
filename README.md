@@ -6,7 +6,7 @@ The Solar System Integration Engine (SSIE) attempts to implement real-time integ
 The implementation is based on my another repository [JPL_Ephem](https://github.com/vsr83/JPL_Ephem).
 
 ## Accuracy
-From comparison to positions generated using DE422 for the time period 1900-2100, it seems that the mean and maximum errors with respect to DE422 are as follows:
+From comparison to positions generated using DE422 with [jplephem](https://pypi.org/project/jplephem/) for the time period 1900-2100, it seems that the mean and maximum errors with respect to DE422 are as follows:
 | Target  | Max. Error (km)   | Mean Error (km)   | Max. Error (mas)   | Mean Error (mas)  |
 | ------- |:-----------------:|:-----------------:|:------------------:| -----------------:|
 | Mercury | 1.103291588456589 | 0.234647640795888 | 1.583638833741311  | 0.235231268403187 |
@@ -52,3 +52,4 @@ The angular error is expressed w.r.t. Earth. It is likely that the accuracy coul
 ## References
 1. Newhall, Standish, Williams - DE 102: a numerically integrated ephemeris of the Moon and planets spanning forty-four centuries, Astronomy and Astrophysics, 125, 150-167, 1983 [link](https://adsabs.harvard.edu/full/1983A%26A...125..150N).
 2. Urban, Seidelmann - Explanatory Supplement to the Astronomical Almanac, 3rd edition, University Science Books, 2013. [link](https://www.amazon.com/Explanatory-Supplement-Astronomical-Almanac-Urban/dp/1891389858)
+3. Folkner, Williams, Boggs - The Planetary and Lunar Ephemeris DE 421, IPN Progress Report 42-178, 2009. [link](https://ipnpr.jpl.nasa.gov/progress_report/42-178/178C.pdf)
