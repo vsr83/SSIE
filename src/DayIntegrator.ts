@@ -11,7 +11,11 @@ export class DayIntegrator {
     private JDinit : number;
     // Integration configuration.
     private integrationConf : IntegrationConf;
-
+    // Direction of the last integration.
+    private lastDirection : number;
+    // Number of days after previous initialization.
+    private numDaysAfterInitial : number
+    
     /**
      * Public constructor.
      * 
@@ -20,6 +24,8 @@ export class DayIntegrator {
     constructor(confIn : IntegrationConf) {
         this.integrationConf = confIn;
         this.JDinit = -1;
+        this.lastDirection = 0;
+        this.numDaysAfterInitial = 0;
     }
 
     /**
@@ -34,7 +40,8 @@ export class DayIntegrator {
             throw new Error(fullJD + " not an integer!");
         }
 
-        if (this.JDinit == -1 || Math.abs(fullJD - this.JDinit) > 350.0) {
+        if (this.JDinit == -1 || Math.abs(fullJD - this.JDinit) > 350.0 || 
+            this.numDaysAfterInitial > 365) {
             // First request or the requested time is almost a year away from the 
             // initial condition.
 
@@ -42,6 +49,7 @@ export class DayIntegrator {
 
             this.state = this.fromInitialCondition(fullJD),
             this.JDinit = fullJD;
+            this.numDaysAfterInitial = 0;
 
             return JSON.parse(JSON.stringify(this.state));
         }
@@ -52,6 +60,16 @@ export class DayIntegrator {
         if (numDays == 0) {
             return JSON.parse(JSON.stringify(this.state));
         }
+
+        this.numDaysAfterInitial += Math.abs(numDays);
+
+        // If the integration changes direction, we must reset the buffer for the 
+        // Adams integrator.
+        if (Math.sign(numDays) != this.lastDirection) {
+            this.state.F = [];
+        }
+
+        this.lastDirection = Math.sign(numDays);
 
         // Integrate from initial condition to the closest full Julian day.
         const integration : Integration = new Integration();
